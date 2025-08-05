@@ -1,5 +1,6 @@
 package com.panda.youtubedatafetcher.service;
 
+import com.google.api.core.ApiFuture;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.QueryDocumentSnapshot;
@@ -8,9 +9,7 @@ import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.cloud.FirestoreClient;
 import jakarta.annotation.PostConstruct;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import com.google.api.core.ApiFuture;
 
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
@@ -59,15 +58,41 @@ public class FirebaseService {
 //    }
 
     public String getAvailableApiKey() throws Exception {
+        return getAvailableApiKeyWithRetry(0);
+    }
+
+    private String getAvailableApiKeyWithRetry(int attempt) throws Exception {
         ApiFuture<QuerySnapshot> future = db.collection("youtube_api_keys")
                 .whereEqualTo("isLimitReach", false)
                 .limit(1)
                 .get();
 
         List<QueryDocumentSnapshot> documents = future.get().getDocuments();
-        if (documents.isEmpty()) return null;
 
-        return documents.get(0).getString("apiKey");
+        if (!documents.isEmpty()) {
+            return documents.get(0).getString("apiKey");
+        }
+
+        if (attempt < 3) {
+            System.out.println("[FirebaseService] No available API keys. Resetting all (Attempt " + (attempt + 1) + ")...");
+            resetAllApiKeys();
+            return getAvailableApiKeyWithRetry(attempt + 1);
+        } else {
+            throw new RuntimeException("No available YouTube API keys after 3 reset attempts.");
+        }
+    }
+
+    private void resetAllApiKeys() throws Exception {
+        ApiFuture<QuerySnapshot> future = db.collection("youtube_api_keys").get();
+        List<QueryDocumentSnapshot> documents = future.get().getDocuments();
+
+        for (QueryDocumentSnapshot doc : documents) {
+            db.collection("youtube_api_keys")
+                    .document(doc.getId())
+                    .update("isLimitReach", false);
+        }
+
+        System.out.println("[FirebaseService] All API keys reset to false.");
     }
 
     public void markApiKeyAsLimited(String apiKey) throws Exception {
@@ -82,20 +107,5 @@ public class FirebaseService {
             db.collection("youtube_api_keys").document(docId)
                     .update("isLimitReach", true);
         }
-    }
-
-    // inside FirebaseService class
-    @Scheduled(cron = "0 0 0 * * *") // every day at midnight server time
-    public void resetApiKeyLimits() throws Exception {
-        var future = db.collection("youtube_api_keys").get();
-        var docs = future.get().getDocuments();
-
-        for (var doc : docs) {
-            if (Boolean.TRUE.equals(doc.getBoolean("isLimitReach"))) {
-                db.collection("youtube_api_keys").document(doc.getId())
-                        .update("isLimitReach", false);
-            }
-        }
-        System.out.println("[Scheduler] Reset all API keys to isLimitReach=false");
     }
 }
