@@ -22,6 +22,7 @@ public class FirebaseService {
 
     private Firestore db;
 
+    // for development
     @PostConstruct
     public void init() throws Exception {
         FileInputStream serviceAccount =
@@ -37,6 +38,7 @@ public class FirebaseService {
         db = FirestoreClient.getFirestore();
     }
 
+    // for production
 //    @PostConstruct
 //    public void init() throws Exception {
 //        String firebaseJson = System.getenv("FIREBASE_CREDENTIALS");
