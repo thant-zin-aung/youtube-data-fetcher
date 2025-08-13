@@ -18,6 +18,12 @@ public class DeezerService {
         return restTemplate.getForObject(url, Object.class);
     }
 
+    public String getTopTracks(int limit) {
+        String url = "https://api.deezer.com/chart/0/tracks?limit=" + limit;
+        return restTemplate.getForObject(url, String.class);
+    }
+
+
     public Object getTopArtists() {
         String url = BASE_URL + "/chart/0/artists?limit=100";
         return restTemplate.getForObject(url, Object.class);

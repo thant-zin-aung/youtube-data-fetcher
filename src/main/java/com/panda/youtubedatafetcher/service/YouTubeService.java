@@ -28,7 +28,7 @@ public class YouTubeService {
         String url = "https://www.googleapis.com/youtube/v3/search" +
                 "?part=snippet" +
                 "&q=" + encodedQuery +
-                "&type=video" + // ensures only videos, but still do null checks
+                "&type=video" +
                 "&maxResults=50" +
                 "&key=" + apiKey;
 
@@ -36,7 +36,6 @@ public class YouTubeService {
             String response = restTemplate.getForObject(url, String.class);
             JsonNode root = objectMapper.readTree(response);
 
-            // Handle API error responses
             if (root.has("error")) {
                 String reason = root.path("error").path("errors").get(0).path("reason").asText();
                 if ("quotaExceeded".equals(reason)) {
@@ -54,7 +53,6 @@ public class YouTubeService {
                     JsonNode idNode = item.get("id");
                     JsonNode snippetNode = item.get("snippet");
 
-                    // Skip if videoId or snippet is missing
                     if (idNode == null || idNode.get("videoId") == null || snippetNode == null) {
                         continue;
                     }
